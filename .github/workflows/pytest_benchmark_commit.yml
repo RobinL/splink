@@ -27,8 +27,8 @@ jobs:
       - name: Load cached Poetry installation
         uses: actions/cache@v2
         with:
-          path: ~/.local  # the path depends on the OS
-          key: poetry-0  # increment to reset cache
+          path: ~/.local # the path depends on the OS
+          key: poetry-0 # increment to reset cache
       #----------------------------------------------
       #  -----  install & configure poetry  -----
       #----------------------------------------------
@@ -48,37 +48,3 @@ jobs:
         with:
           path: .venv
           key: venv-${{ runner.os }}-${{ steps.setup-python.outputs.python-version }}-${{ hashFiles('**/poetry.lock') }}-00
-      #----------------------------------------------
-      # install dependencies if cache does not exist
-      #----------------------------------------------
-      - name: Install dependencies
-        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: |
-          sed -i 's/sqlglot = "1.23.1"/sqlglot = "1.23.1" \npyspark = "^3.2.1"/' ./pyproject.toml
-          poetry install --no-interaction --no-root
-      #----------------------------------------------
-      # install your root project, if required
-      #----------------------------------------------
-      - name: Install library
-        run: |
-          if ! grep -Fxq "pyspark" ./pyproject.toml
-          then
-            sed -i 's/sqlglot = "1.23.1"/sqlglot = "1.23.1" \npyspark = "^3.2.1"/' ./pyproject.toml
-          fi
-          poetry install --no-interaction
-      #----------------------------------------------
-      #              run benchmarks and comment
-      #----------------------------------------------
-      - name: Run benchmark and comment
-        run: |
-          source .venv/bin/activate
-          pytest benchmarking/test_performance.py  --benchmark-json benchmarking/output.json -k 'test_2_rounds_1k_sqlite or test_2_rounds_1k_duckdb'
-          python benchmarking/combine_benchmarks_timeseries.py
-          git config --global user.email "actions@users.noreply.github.com"
-          git config --global user.name "robin"
-          git add -A -f benchmarking/time_series.json
-          git commit -m "Updated benchmarks timeseries" || exit 0
-          git push
-
-
-
