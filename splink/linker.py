@@ -92,6 +92,16 @@ class Linker:
 
     @property
     def settings_obj(self):
+        """checks if setting object exists
+
+        Parameters
+        ----------
+        self : Linker
+
+        Returns
+        -------
+        _settings_obj"""
+
         if self._settings_obj is None:
             raise ValueError(
                 "You did not provide a settings dictionary when you "
