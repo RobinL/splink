@@ -43,6 +43,7 @@ from .splink_comparison_viewer import (
     comparison_viewer_table,
     render_splink_comparison_viewer_html,
 )
+from .analyse_blocking import analyse_blocking_rule_sql
 
 
 logger = logging.getLogger(__name__)
@@ -450,6 +451,14 @@ class Linker:
                 em_training_session.comparison_levels_to_reverse_blocking_rule
             )
 
+            logger.log(
+                15,
+                "\n"
+                f"Proportion of matches from trained model blocking on "
+                f"{em_training_session.blocking_rule_for_training}: "
+                f"{training_lambda:,.3f}",
+            )
+
             for reverse_level in reverse_levels:
 
                 # Get comparison level on current settings obj
@@ -466,11 +475,28 @@ class Linker:
                 else:
                     bf = cl.bayes_factor
 
+                logger.log(
+                    15,
+                    f"Reversing comparison level {cc.comparison_name}"
+                    f" using bayes factor {bf:,.3f}",
+                )
+
                 training_lambda_bf = training_lambda_bf / bf
+
+                logger.log(
+                    15,
+                    "This estimate of proportion of matches now: "
+                    f" {bayes_factor_to_prob(training_lambda_bf):,.3f}",
+                )
             p = bayes_factor_to_prob(training_lambda_bf)
             prop_matches_estimates.append(p)
 
         self.settings_obj._proportion_of_matches = median(prop_matches_estimates)
+        logger.log(
+            15,
+            "\nMedian of prop of matches estimates: "
+            f"{self.settings_obj._proportion_of_matches:,.3f}",
+        )
 
     def populate_m_u_from_trained_values(self):
         ccs = self.settings_obj.comparisons
@@ -500,7 +526,7 @@ class Linker:
             comparison_levels_to_reverse_blocking_rule=comparison_levels_to_reverse_blocking_rule,  # noqa
         )
 
-    def predict(self):
+    def predict(self, threshold_match_probability=None, threshold_match_weight=None):
 
         # If the user only calls predict, it runs as a single pipeline with no
         # materialisation of anything
@@ -512,7 +538,9 @@ class Linker:
         sql = compute_comparison_vector_values_sql(self.settings_obj)
         self.enqueue_sql(sql, "__splink__df_comparison_vectors")
 
-        sqls = predict_from_comparison_vectors_sql(self.settings_obj)
+        sqls = predict_from_comparison_vectors_sql(
+            self.settings_obj, threshold_match_probability, threshold_match_weight
+        )
         for sql in sqls:
             self.enqueue_sql(sql["sql"], sql["output_table_name"])
 
@@ -718,6 +746,16 @@ class Linker:
     def missingness_chart(self, input_dataset=None):
         records = missingness_data(self, input_dataset)
         return missingness_chart(records, input_dataset)
+
+    def analyse_blocking_rule(self, blocking_rule, link_type=None):
+
+        sql = vertically_concatente_sql(self)
+        self.enqueue_sql(sql, "__splink__df_concat")
+
+        sql = analyse_blocking_rule_sql(self, blocking_rule, link_type)
+        self.enqueue_sql(sql, "__splink__analyse_blocking_rule")
+        res = self.execute_sql_pipeline().as_record_dict()[0]
+        return res
 
     def _predict_warning(self):
 
