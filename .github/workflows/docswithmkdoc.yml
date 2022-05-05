@@ -21,5 +21,5 @@ jobs:
         with:
           python-version: 3.9
       - run: pip install --upgrade pip && pip install mkdocs==1.1.2 mknotebooks mkdocs-material mkdocs-gen-files mkdocs-autorefs mkdocs-include-markdown-plugin  mkdocs-material-extensions mkdocs-mermaid2-plugin mkdocs-monorepo-plugin mkdocs-semiliterate mkdocs-simple-plugin mkdocstrings mkdocstrings-python mkdocstrings-python-legacy mkdocs-semiliterate
-      - run: pip install jinja2==3.0.0 && mkdocs gh-deploy --force
+      - run: pip install jinja2==3.0.0 splink==3.0.0.dev11 && mkdocs gh-deploy --force
       - run: mkdocs --version
