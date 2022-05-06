@@ -20,6 +20,6 @@ jobs:
         with:
           persist-credentials: false # otherwise, the token used is the GITHUB_TOKEN, instead of your personal access token.
           fetch-depth: 0 # otherwise, there would be errors pushing refs to the destination repository.
-      - run: pip install --upgrade pip && pip install mkdocs==1.1.2 mknotebooks mkdocs-material mkdocs-gen-files mkdocs-autorefs mkdocs-include-markdown-plugin  mkdocs-material-extensions mkdocs-mermaid2-plugin mkdocs-monorepo-plugin mkdocs-semiliterate mkdocs-simple-plugin mkdocstrings mkdocstrings-python mkdocstrings-python-legacy mkdocs-semiliterate
+      - run: pip install --upgrade pip && pip install mkdocs==1.2.1 mknotebooks mkdocs-material mkdocs-gen-files mkdocs-autorefs mkdocs-include-markdown-plugin  mkdocs-material-extensions mkdocs-mermaid2-plugin mkdocs-monorepo-plugin mkdocs-semiliterate mkdocs-simple-plugin mkdocstrings mkdocstrings-python mkdocstrings-python-legacy mkdocs-semiliterate
       - run: pip install jinja2==3.0.3 splink==3.0.0.dev11 && mkdocs gh-deploy --force
       - run: mkdocs --version
