@@ -17,7 +17,8 @@ jobs:
         with:
           repository: "moj-analytical-services/splink_demos"
           path: "docs/demos/"
-      - run: rm -v !\(docs/demos/*.ipynb\)
+      - run: setopt extendedglob
+      - run: rm -- !(docs/demos/*.ipynb)
       - uses: actions/setup-python@v2
         with:
           python-version: 3.9
