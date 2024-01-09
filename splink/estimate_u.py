@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import logging
 import math
+import multiprocessing
 from copy import deepcopy
 from typing import TYPE_CHECKING, List
-import multiprocessing
 
 from .blocking import block_using_rules_sqls, blocking_rule_to_obj
 from .comparison_vector_values import compute_comparison_vector_values_sql
@@ -55,7 +55,6 @@ def _proportion_sample_size_link_only(
 
 def _get_duckdb_salting(max_pairs):
     return multiprocessing.cpu_count()
-
 
 
 def estimate_u_values(linker: Linker, max_pairs, seed=None):
