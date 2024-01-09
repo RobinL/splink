@@ -132,6 +132,7 @@ def predict_from_agreement_pattern_counts_sqls(
     {match_prob_expr} as match_probability,
     {select_cols_expr}
     from __splink__df_match_weight_parts
+    order by 1
     """
 
     sql = {
