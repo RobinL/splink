@@ -72,7 +72,6 @@ def predict_from_comparison_vectors_sqls(
     {select_cols_expr} {clerical_match_score}
     from __splink__df_match_weight_parts
     {threshold_expr}
-    order by 1
     """
 
     sql = {
