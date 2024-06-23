@@ -3,10 +3,8 @@ name: docswithmkdoc
 on:
   push:
     branches:
-      # Fix
       - splink4_dev_build
     paths:
-      # files that affect the docs build:
       - docs/**
       - CONTRIBUTING.md
       - mkdocs.yml
