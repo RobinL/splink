@@ -1,4 +1,4 @@
-name: docswithmkdoc
+name: new_docs
 
 on:
   push:
