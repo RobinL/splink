@@ -49,7 +49,7 @@ jobs:
           name: built_site
           path: site
 
-      # some environment info:
+      # some environment info
       - run: pip freeze
       - run: mkdocs --version
 
