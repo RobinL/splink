@@ -38,7 +38,7 @@ def register_cc_df(G):
     db_api = DuckDBAPI()
 
     linker = Linker(
-        df_concat, settings_dict, input_table_aliases=table_name, database_api=db_api
+        df_concat, settings_dict, input_table_aliases=table_name, db_api=db_api
     )
 
     # re-register under our required name to run the CC function
@@ -61,7 +61,6 @@ def run_cc_implementation(linker, predict_df):
     cc = solve_connected_components(
         linker,
         predict_df,
-        df_predict=None,
         concat_with_tf=concat_with_tf,
         _generated_graph=True,
     ).as_pandas_dataframe()

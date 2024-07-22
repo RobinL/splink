@@ -1,17 +1,18 @@
 from __future__ import annotations
 
 import logging
+import time
 from typing import TYPE_CHECKING, Any
 
 from splink.internals.blocking import (
     BlockingRule,
     block_using_rules_sqls,
-    blocking_rule_to_obj,
     materialise_exploded_id_tables,
 )
 from splink.internals.blocking_rule_creator import BlockingRuleCreator
+from splink.internals.blocking_rule_creator_utils import to_blocking_rule_creator
 from splink.internals.comparison_vector_values import (
-    compute_comparison_vector_values_sql,
+    compute_comparison_vector_values_from_id_pairs_sqls,
 )
 from splink.internals.database_api import AcceptableInputTableType
 from splink.internals.find_matches_to_new_records import (
@@ -52,7 +53,7 @@ class LinkerInference:
 
     def deterministic_link(self) -> SplinkDataFrame:
         """Uses the blocking rules specified by
-        `blocking_rules_to_generate_predictions` in the settings dictionary to
+        `blocking_rules_to_generate_predictions` in your settings to
         generate pairwise record comparisons.
 
         For deterministic linkage, this should be a list of blocking rules which
@@ -64,29 +65,21 @@ class LinkerInference:
         Examples:
 
             ```py
-            from splink.linker import Linker
-            from splink.duckdb.database_api import DuckDBAPI
-
-            db_api = DuckDBAPI()
-
-            settings = {
-                "link_type": "dedupe_only",
-                "blocking_rules_to_generate_predictions": [
-                    "l.first_name = r.first_name",
-                    "l.surname = r.surname",
+            settings = SettingsCreator(
+                link_type="dedupe_only",
+                blocking_rules_to_generate_predictions=[
+                    block_on("first_name", "surname"),
+                    block_on("dob", "first_name"),
                 ],
-                "comparisons": []
-            }
-            >>>
-            linker = Linker(df, settings, db_api)
-            df = linker.deterministic_link()
+            )
+
+            linker = Linker(df, settings, db_api=db_api)
+            splink_df = linker.inference.deterministic_link()
             ```
 
 
         Returns:
-            SplinkDataFrame: A SplinkDataFrame of the pairwise comparisons.  This
-                represents a table materialised in the database. Methods on the
-                SplinkDataFrame allow you to access the underlying data.
+            SplinkDataFrame: A SplinkDataFrame of the pairwise comparisons.
         """
         pipeline = CTEPipeline()
         # Allows clustering during a deterministic linkage.
@@ -124,15 +117,24 @@ class LinkerInference:
             unique_id_input_column=self._linker._settings_obj.column_info_settings.unique_id_input_column,
         )
 
-        columns_to_select = self._linker._settings_obj._columns_to_select_for_blocking
-        sql_select_expr = ", ".join(columns_to_select)
-
         sqls = block_using_rules_sqls(
             input_tablename_l=blocking_input_tablename_l,
             input_tablename_r=blocking_input_tablename_r,
             blocking_rules=self._linker._settings_obj._blocking_rules_to_generate_predictions,
             link_type=link_type,
-            columns_to_select_sql=sql_select_expr,
+            source_dataset_input_column=self._linker._settings_obj.column_info_settings.source_dataset_input_column,
+            unique_id_input_column=self._linker._settings_obj.column_info_settings.unique_id_input_column,
+        )
+        pipeline.enqueue_list_of_sqls(sqls)
+        blocked_pairs = self._linker._db_api.sql_pipeline_to_splink_dataframe(pipeline)
+
+        pipeline = CTEPipeline([blocked_pairs, df_concat_with_tf])
+
+        sqls = compute_comparison_vector_values_from_id_pairs_sqls(
+            self._linker._settings_obj._columns_to_select_for_blocking,
+            ["*"],
+            input_tablename_l="__splink__df_concat_with_tf",
+            input_tablename_r="__splink__df_concat_with_tf",
             source_dataset_input_column=self._linker._settings_obj.column_info_settings.source_dataset_input_column,
             unique_id_input_column=self._linker._settings_obj.column_info_settings.unique_id_input_column,
         )
@@ -144,6 +146,7 @@ class LinkerInference:
         deterministic_link_df.metadata["is_deterministic_link"] = True
 
         [b.drop_materialised_id_pairs_dataframe() for b in exploding_br_with_id_tables]
+        blocked_pairs.drop_table_from_database_and_remove_from_cache()
 
         return deterministic_link_df
 
@@ -152,12 +155,13 @@ class LinkerInference:
         threshold_match_probability: float = None,
         threshold_match_weight: float = None,
         materialise_after_computing_term_frequencies: bool = True,
+        materialise_blocked_pairs: bool = True,
     ) -> SplinkDataFrame:
         """Create a dataframe of scored pairwise comparisons using the parameters
         of the linkage model.
 
         Uses the blocking rules specified in the
-        `blocking_rules_to_generate_predictions` of the settings dictionary to
+        `blocking_rules_to_generate_predictions` key of the settings to
         generate the pairwise comparisons.
 
         Args:
@@ -171,21 +175,18 @@ class LinkerInference:
                 will materialise the table containing the input nodes (rows)
                 joined to any term frequencies which have been asked
                 for in the settings object.  If False, this will be
-                computed as part of one possibly gigantic CTE
-                pipeline.   Defaults to True
+                computed as part of a large CTE pipeline.   Defaults to True
+            materialise_blocked_pairs: In the blocking phase, materialise the table
+                of pairs of records that will be scored
 
         Examples:
             ```py
-            linker = DuckDBLinker(df)
-            linker.load_settings("saved_settings.json")
-            df = linker.predict(threshold_match_probability=0.95)
-            df.as_pandas_dataframe(limit=5)
+            linker = linker(df, "saved_settings.json", db_api=db_api)
+            splink_df = linker.inference.predict(threshold_match_probability=0.95)
+            splink_df.as_pandas_dataframe(limit=5)
             ```
         Returns:
-            SplinkDataFrame: A SplinkDataFrame of the pairwise comparisons.  This
-                represents a table materialised in the database. Methods on the
-                SplinkDataFrame allow you to access the underlying data.
-
+            SplinkDataFrame: A SplinkDataFrame of the scored pairwise comparisons.
         """
 
         pipeline = CTEPipeline()
@@ -204,6 +205,8 @@ class LinkerInference:
             pipeline = CTEPipeline([df_concat_with_tf])
         else:
             pipeline = enqueue_df_concat_with_tf(self._linker, pipeline)
+
+        start_time = time.time()
 
         blocking_input_tablename_l = "__splink__df_concat_with_tf"
         blocking_input_tablename_r = "__splink__df_concat_with_tf"
@@ -235,33 +238,36 @@ class LinkerInference:
             unique_id_input_column=self._linker._settings_obj.column_info_settings.unique_id_input_column,
         )
 
-        columns_to_select = self._linker._settings_obj._columns_to_select_for_blocking
-        sql_select_expr = ", ".join(columns_to_select)
-
         sqls = block_using_rules_sqls(
             input_tablename_l=blocking_input_tablename_l,
             input_tablename_r=blocking_input_tablename_r,
             blocking_rules=self._linker._settings_obj._blocking_rules_to_generate_predictions,
             link_type=link_type,
-            columns_to_select_sql=sql_select_expr,
             source_dataset_input_column=self._linker._settings_obj.column_info_settings.source_dataset_input_column,
             unique_id_input_column=self._linker._settings_obj.column_info_settings.unique_id_input_column,
         )
 
         pipeline.enqueue_list_of_sqls(sqls)
 
-        repartition_after_blocking = getattr(
-            self._linker, "repartition_after_blocking", False
-        )
+        if materialise_blocked_pairs:
+            blocked_pairs = self._linker._db_api.sql_pipeline_to_splink_dataframe(
+                pipeline
+            )
 
-        # repartition after blocking only exists on the SparkLinker
-        if repartition_after_blocking:
-            pipeline = pipeline.break_lineage(self._linker._db_api)
+            pipeline = CTEPipeline([blocked_pairs, df_concat_with_tf])
+            blocking_time = time.time() - start_time
+            logger.info(f"Blocking time: {blocking_time:.2f} seconds")
+            start_time = time.time()
 
-        sql = compute_comparison_vector_values_sql(
-            self._linker._settings_obj._columns_to_select_for_comparison_vector_values
+        sqls = compute_comparison_vector_values_from_id_pairs_sqls(
+            self._linker._settings_obj._columns_to_select_for_blocking,
+            self._linker._settings_obj._columns_to_select_for_comparison_vector_values,
+            input_tablename_l="__splink__df_concat_with_tf",
+            input_tablename_r="__splink__df_concat_with_tf",
+            source_dataset_input_column=self._linker._settings_obj.column_info_settings.source_dataset_input_column,
+            unique_id_input_column=self._linker._settings_obj.column_info_settings.unique_id_input_column,
         )
-        pipeline.enqueue_sql(sql, "__splink__df_comparison_vectors")
+        pipeline.enqueue_list_of_sqls(sqls)
 
         sqls = predict_from_comparison_vectors_sqls_using_settings(
             self._linker._settings_obj,
@@ -272,9 +278,15 @@ class LinkerInference:
         pipeline.enqueue_list_of_sqls(sqls)
 
         predictions = self._linker._db_api.sql_pipeline_to_splink_dataframe(pipeline)
+
+        predict_time = time.time() - start_time
+        logger.info(f"Predict time: {predict_time:.2f} seconds")
+
         self._linker._predict_warning()
 
         [b.drop_materialised_id_pairs_dataframe() for b in exploding_br_with_id_tables]
+        if materialise_blocked_pairs:
+            blocked_pairs.drop_table_from_database_and_remove_from_cache()
 
         return predictions
 
@@ -305,11 +317,14 @@ class LinkerInference:
 
         Examples:
             ```py
-            linker = DuckDBLinker(df)
-            linker.load_settings("saved_settings.json")
-            # Pre-compute tf tables for any tables with
+            linker = Linker(df, "saved_settings.json", db_api=db_api)
+
+            # You should load or pre-compute tf tables for any tables with
             # term frequency adjustments
             linker.table_management.compute_tf_table("first_name")
+            # OR
+            linker.table_management.register_term_frequency_lookup(df, "first_name")
+
             record = {'unique_id': 1,
                 'first_name': "John",
                 'surname': "Smith",
@@ -352,8 +367,14 @@ class LinkerInference:
 
         pipeline = CTEPipeline([nodes_with_tf, new_records_df])
         if len(blocking_rule_list) == 0:
-            blocking_rule_list = [BlockingRule("1=1")]
-        blocking_rule_list = [blocking_rule_to_obj(br) for br in blocking_rule_list]
+            blocking_rule_list = ["1=1"]
+
+        blocking_rule_list = [
+            to_blocking_rule_creator(br).get_blocking_rule(
+                self._linker._db_api.sql_dialect.name
+            )
+            for br in blocking_rule_list
+        ]
         for n, br in enumerate(blocking_rule_list):
             br.add_preceding_rules(blocking_rule_list[:n])
 
@@ -361,13 +382,42 @@ class LinkerInference:
             blocking_rule_list
         )
 
+        pipeline = add_unique_id_and_source_dataset_cols_if_needed(
+            self._linker,
+            new_records_df,
+            pipeline,
+            in_tablename="__splink__df_new_records",
+            out_tablename="__splink__df_new_records_uid_fix",
+        )
+        settings = self._linker._settings_obj
+        sqls = block_using_rules_sqls(
+            input_tablename_l="__splink__df_concat_with_tf",
+            input_tablename_r="__splink__df_new_records_uid_fix",
+            blocking_rules=blocking_rule_list,
+            link_type="two_dataset_link_only",
+            source_dataset_input_column=settings.column_info_settings.source_dataset_input_column,
+            unique_id_input_column=settings.column_info_settings.unique_id_input_column,
+        )
+        pipeline.enqueue_list_of_sqls(sqls)
+
+        blocked_pairs = self._linker._db_api.sql_pipeline_to_splink_dataframe(pipeline)
+
+        pipeline = CTEPipeline([blocked_pairs, new_records_df, nodes_with_tf])
+
+        cache = self._linker._intermediate_table_cache
         for tf_col in self._linker._settings_obj._term_frequency_columns:
             tf_table_name = colname_to_tf_tablename(tf_col)
-            if tf_table_name in self._linker._intermediate_table_cache:
-                tf_table = self._linker._intermediate_table_cache.get_with_logging(
-                    tf_table_name
-                )
+            if tf_table_name in cache:
+                tf_table = cache.get_with_logging(tf_table_name)
                 pipeline.append_input_dataframe(tf_table)
+            else:
+                if "__splink__df_concat_with_tf" not in cache:
+                    logger.warning(
+                        f"No term frequencies found for column {tf_col.name}.\n"
+                        "To apply term frequency adjustments, you need to register"
+                        " a lookup using "
+                        "`linker.table_management.register_term_frequency_lookup`."
+                    )
 
         sql = _join_new_table_to_df_concat_with_tf_sql(
             self._linker, "__splink__df_new_records"
@@ -375,24 +425,23 @@ class LinkerInference:
         pipeline.enqueue_sql(sql, "__splink__df_new_records_with_tf_before_uid_fix")
 
         pipeline = add_unique_id_and_source_dataset_cols_if_needed(
-            self._linker, new_records_df, pipeline
+            self._linker,
+            new_records_df,
+            pipeline,
+            in_tablename="__splink__df_new_records_with_tf_before_uid_fix",
+            out_tablename="__splink__df_new_records_with_tf",
         )
-        settings = self._linker._settings_obj
-        sqls = block_using_rules_sqls(
+
+        sqls = compute_comparison_vector_values_from_id_pairs_sqls(
+            self._linker._settings_obj._columns_to_select_for_blocking,
+            self._linker._settings_obj._columns_to_select_for_comparison_vector_values,
             input_tablename_l="__splink__df_concat_with_tf",
             input_tablename_r="__splink__df_new_records_with_tf",
-            blocking_rules=blocking_rule_list,
-            link_type="two_dataset_link_only",
-            columns_to_select_sql=", ".join(settings._columns_to_select_for_blocking),
             source_dataset_input_column=settings.column_info_settings.source_dataset_input_column,
             unique_id_input_column=settings.column_info_settings.unique_id_input_column,
         )
-        pipeline.enqueue_list_of_sqls(sqls)
 
-        sql = compute_comparison_vector_values_sql(
-            self._linker._settings_obj._columns_to_select_for_comparison_vector_values
-        )
-        pipeline.enqueue_sql(sql, "__splink__df_comparison_vectors")
+        pipeline.enqueue_list_of_sqls(sqls)
 
         sqls = predict_from_comparison_vectors_sqls_using_settings(
             self._linker._settings_obj,
@@ -416,6 +465,8 @@ class LinkerInference:
         )
         self._linker._settings_obj._link_type = original_link_type
 
+        blocked_pairs.drop_table_from_database_and_remove_from_cache()
+
         return predictions
 
     def compare_two_records(
@@ -432,9 +483,31 @@ class LinkerInference:
 
         Examples:
             ```py
-            linker = DuckDBLinker(df)
-            linker.load_settings("saved_settings.json")
-            linker.compare_two_records(record_left, record_right)
+            linker = Linker(df, "saved_settings.json", db_api=db_api)
+
+            # You should load or pre-compute tf tables for any tables with
+            # term frequency adjustments
+            linker.table_management.compute_tf_table("first_name")
+            # OR
+            linker.table_management.register_term_frequency_lookup(df, "first_name")
+
+            record_1 = {'unique_id': 1,
+                'first_name': "John",
+                'surname': "Smith",
+                'dob': "1971-05-24",
+                'city': "London",
+                'email': "john@smith.net"
+                }
+
+            record_2 = {'unique_id': 1,
+                'first_name': "Jon",
+                'surname': "Smith",
+                'dob': "1971-05-23",
+                'city': "London",
+                'email': "john@smith.net"
+                }
+            df = linker.inference.compare_two_records(record_1, record_2)
+
             ```
 
         Returns:
@@ -486,23 +559,47 @@ class LinkerInference:
 
         pipeline.enqueue_sql(sql_join_tf, "__splink__compare_two_records_right_with_tf")
 
+        source_dataset_ic = (
+            self._linker._settings_obj.column_info_settings.source_dataset_input_column
+        )
+        uid_ic = self._linker._settings_obj.column_info_settings.unique_id_input_column
+
+        pipeline = add_unique_id_and_source_dataset_cols_if_needed(
+            self._linker,
+            df_records_left,
+            pipeline,
+            in_tablename="__splink__compare_two_records_left_with_tf",
+            out_tablename="__splink__compare_two_records_left_with_tf_uid_fix",
+            uid_str="_left",
+        )
+        pipeline = add_unique_id_and_source_dataset_cols_if_needed(
+            self._linker,
+            df_records_right,
+            pipeline,
+            in_tablename="__splink__compare_two_records_right_with_tf",
+            out_tablename="__splink__compare_two_records_right_with_tf_uid_fix",
+            uid_str="_right",
+        )
+
         sqls = block_using_rules_sqls(
-            input_tablename_l="__splink__compare_two_records_left_with_tf",
-            input_tablename_r="__splink__compare_two_records_right_with_tf",
+            input_tablename_l="__splink__compare_two_records_left_with_tf_uid_fix",
+            input_tablename_r="__splink__compare_two_records_right_with_tf_uid_fix",
             blocking_rules=[BlockingRule("1=1")],
             link_type=self._linker._settings_obj._link_type,
-            columns_to_select_sql=", ".join(
-                self._linker._settings_obj._columns_to_select_for_blocking
-            ),
-            source_dataset_input_column=self._linker._settings_obj.column_info_settings.source_dataset_input_column,
-            unique_id_input_column=self._linker._settings_obj.column_info_settings.unique_id_input_column,
+            source_dataset_input_column=source_dataset_ic,
+            unique_id_input_column=uid_ic,
         )
         pipeline.enqueue_list_of_sqls(sqls)
 
-        sql = compute_comparison_vector_values_sql(
-            self._linker._settings_obj._columns_to_select_for_comparison_vector_values
+        sqls = compute_comparison_vector_values_from_id_pairs_sqls(
+            self._linker._settings_obj._columns_to_select_for_blocking,
+            self._linker._settings_obj._columns_to_select_for_comparison_vector_values,
+            input_tablename_l="__splink__compare_two_records_left_with_tf_uid_fix",
+            input_tablename_r="__splink__compare_two_records_right_with_tf_uid_fix",
+            source_dataset_input_column=source_dataset_ic,
+            unique_id_input_column=uid_ic,
         )
-        pipeline.enqueue_sql(sql, "__splink__df_comparison_vectors")
+        pipeline.enqueue_list_of_sqls(sqls)
 
         sqls = predict_from_comparison_vectors_sqls_using_settings(
             self._linker._settings_obj,

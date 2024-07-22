@@ -85,9 +85,9 @@ The `"comparisons"` define the features to be compared between records: `"first_
 
 ```py linenums="10"
     comparisons=[
-        ctl.NameComparison("first_name"),
-        ctl.NameComparison("surname"),
-        ctl.DateComparison(
+        cl.NameComparison("first_name"),
+        cl.NameComparison("surname"),
+        cl.DateComparison(
             "dob",
             input_is_string=True,
             datetime_metrics=["month", "year"],
@@ -97,11 +97,11 @@ The `"comparisons"` define the features to be compared between records: `"first_
             ],
         ),
         cl.ExactMatch("city").configure(term_frequency_adjustments=True),
-        ctl.EmailComparison("email"),
+        cl.EmailComparison("email"),
     ],
 ```
 
-Using functions from the [comparison template library](../comparisons//comparison_templates.ipynb) and [comparison library](../comparisons/customising_comparisons.ipynb#method-1-using-the-comparisonlibrary) to define **how** these features should be compared.
+Using functions from the [comparison library](../comparisons/customising_comparisons.ipynb#method-1-using-the-comparisonlibrary) to define **how** these features should be compared.
 
 
 
@@ -147,7 +147,7 @@ With our finalised settings object, we can train a Splink model using the follow
         ],
     )
 
-    linker = Linker(df, settings, database_api=db_api)
+    linker = Linker(df, settings, db_api=db_api)
     linker.training.estimate_u_using_random_sampling(max_pairs=1e6)
 
     blocking_rule_for_training = block_on("first_name", "surname")
@@ -418,7 +418,7 @@ When using a pre-trained model, you can read in the model from a json and recrea
 ```py
 linker = DuckDBLinker(new_df,
     settings="./path/to/model.json",
-    database_api=db_api
+    db_api=db_api
 )
 
 ```

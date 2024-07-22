@@ -12,7 +12,7 @@ from splink.internals.blocking import (
 )
 from splink.internals.cache_dict_with_logging import CacheDictWithLogging
 from splink.internals.comparison_vector_values import (
-    compute_comparison_vector_values_sql,
+    compute_comparison_vector_values_from_id_pairs_sqls,
 )
 from splink.internals.database_api import AcceptableInputTableType, DatabaseAPISubClass
 from splink.internals.dialects import SplinkDialect
@@ -74,7 +74,7 @@ class Linker:
         self,
         input_table_or_tables: str | list[str],
         settings: SettingsCreator | dict[str, Any] | Path | str,
-        database_api: DatabaseAPISubClass,
+        db_api: DatabaseAPISubClass,
         set_up_basic_logging: bool = True,
         input_table_aliases: str | list[str] | None = None,
         validate_settings: bool = True,
@@ -133,7 +133,7 @@ class Linker:
             splink_logger = logging.getLogger("splink")
             splink_logger.setLevel(logging.INFO)
 
-        self._db_api = database_api
+        self._db_api = db_api
 
         # TODO: temp hack for compat
         self._intermediate_table_cache: CacheDictWithLogging = (
@@ -154,9 +154,7 @@ class Linker:
         # or overwrite it with the db api dialect?
         # Maybe overwrite it here and incompatibilities have to be dealt with
         # by comparisons/ blocking rules etc??
-        self._settings_obj = settings_creator.get_settings(
-            database_api.sql_dialect.name
-        )
+        self._settings_obj = settings_creator.get_settings(db_api.sql_dialect.name)
 
         # TODO: Add test of what happens if the db_api is for a different backend
         # to the sql_dialect set in the settings dict
@@ -547,17 +545,24 @@ class Linker:
             input_tablename_r="__splink__df_concat_with_tf",
             blocking_rules=[blocking_rule],
             link_type="self_link",
-            columns_to_select_sql=", ".join(settings._columns_to_select_for_blocking),
             source_dataset_input_column=settings.column_info_settings.source_dataset_input_column,
             unique_id_input_column=settings.column_info_settings.unique_id_input_column,
         )
         pipeline.enqueue_list_of_sqls(sqls)
 
-        sql = compute_comparison_vector_values_sql(
-            self._settings_obj._columns_to_select_for_comparison_vector_values
-        )
+        blocked_pairs = self._db_api.sql_pipeline_to_splink_dataframe(pipeline)
 
-        pipeline.enqueue_sql(sql, "__splink__df_comparison_vectors")
+        pipeline = CTEPipeline([blocked_pairs, nodes_with_tf])
+
+        sqls = compute_comparison_vector_values_from_id_pairs_sqls(
+            settings._columns_to_select_for_blocking,
+            settings._columns_to_select_for_comparison_vector_values,
+            input_tablename_l="__splink__df_concat_with_tf",
+            input_tablename_r="__splink__df_concat_with_tf",
+            source_dataset_input_column=settings.column_info_settings.source_dataset_input_column,
+            unique_id_input_column=settings.column_info_settings.unique_id_input_column,
+        )
+        pipeline.enqueue_list_of_sqls(sqls)
 
         sql_infos = predict_from_comparison_vectors_sqls(
             unique_id_input_columns=uid_cols,
@@ -590,10 +595,10 @@ class Linker:
         return labels_tablename
 
     def _find_blocking_rules_below_threshold(
-        self, max_comparisons_per_rule, blocking_expressions=None
+        self, max_comparisons_per_rule, blocking_expressions=None, max_results=None
     ):
         return find_blocking_rules_below_threshold_comparison_count(
-            self, max_comparisons_per_rule, blocking_expressions
+            self, max_comparisons_per_rule, blocking_expressions, max_results
         )
 
     def _detect_blocking_rules_for_prediction(

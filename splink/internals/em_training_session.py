@@ -11,9 +11,8 @@ from splink.internals.charts import (
     probability_two_random_records_match_iteration_chart,
 )
 from splink.internals.comparison import Comparison
-from splink.internals.comparison_level import ComparisonLevel
 from splink.internals.comparison_vector_values import (
-    compute_comparison_vector_values_sql,
+    compute_comparison_vector_values_from_id_pairs_sqls,
 )
 from splink.internals.constants import LEVEL_NOT_OBSERVED_TEXT
 from splink.internals.input_column import InputColumn
@@ -57,8 +56,6 @@ class EMTrainingSession:
         fix_u_probabilities: bool = False,
         fix_m_probabilities: bool = False,
         fix_probability_two_random_records_match: bool = False,
-        comparisons_to_deactivate: list[Comparison] = None,
-        comparison_levels_to_reverse_blocking_rule: list[ComparisonLevel] = None,
         estimate_without_term_frequencies: bool = False,
     ):
         logger.info("\n----- Starting EM training session -----\n")
@@ -77,20 +74,13 @@ class EMTrainingSession:
         self._blocking_rule_for_training = blocking_rule_for_training
         self.estimate_without_term_frequencies = estimate_without_term_frequencies
 
-        if comparison_levels_to_reverse_blocking_rule:
-            # TODO: atm this branch probably makes no sense. What would user pass?
-            # self._comparison_levels_to_reverse_blocking_rule = (
-            #     comparison_levels_to_reverse_blocking_rule
-            # )
-            raise ValueError("This path is broken for now.")
-        else:
-            self._comparison_levels_to_reverse_blocking_rule: list[
-                ComparisonAndLevelDict
-            ] = Settings._get_comparison_levels_corresponding_to_training_blocking_rule(  # noqa
-                blocking_rule_sql=blocking_rule_for_training.blocking_rule_sql,
-                sqlglot_dialect_name=self.db_api.sql_dialect.sqlglot_name,
-                comparisons=core_model_settings.comparisons,
-            )
+        self._comparison_levels_to_reverse_blocking_rule: list[
+            ComparisonAndLevelDict
+        ] = Settings._get_comparison_levels_corresponding_to_training_blocking_rule(  # noqa
+            blocking_rule_sql=blocking_rule_for_training.blocking_rule_sql,
+            sqlglot_dialect_name=self.db_api.sql_dialect.sqlglot_name,
+            comparisons=core_model_settings.comparisons,
+        )
 
         # batch together fixed probabilities rather than keep hold of the bools
         self.training_fixed_probabilities: set[str] = {
@@ -104,19 +94,16 @@ class EMTrainingSession:
         }
 
         # Remove comparison columns which are either 'used up' by the blocking rules
-        # or alternatively, if the user has manually provided a list to remove,
-        # use this instead
-        if not comparisons_to_deactivate:
-            comparisons_to_deactivate = []
-            br_cols = get_columns_used_from_sql(
-                blocking_rule_for_training.blocking_rule_sql,
-                self.db_api.sql_dialect.sqlglot_name,
-            )
-            for cc in core_model_settings.comparisons:
-                cc_cols = cc._input_columns_used_by_case_statement
-                cc_cols = [c.input_name for c in cc_cols]
-                if set(br_cols).intersection(cc_cols):
-                    comparisons_to_deactivate.append(cc)
+        comparisons_to_deactivate = []
+        br_cols = get_columns_used_from_sql(
+            blocking_rule_for_training.blocking_rule_sql,
+            self.db_api.sql_dialect.sqlglot_name,
+        )
+        for cc in core_model_settings.comparisons:
+            cc_cols = cc._input_columns_used_by_case_statement
+            cc_cols = [c.input_name for c in cc_cols]
+            if set(br_cols).intersection(cc_cols):
+                comparisons_to_deactivate.append(cc)
         cc_names_to_deactivate = [
             cc.output_column_name for cc in comparisons_to_deactivate
         ]
@@ -145,6 +132,7 @@ class EMTrainingSession:
                 needs_matchkey_column=False,
             )
         )
+
         self.core_model_settings = core_model_settings
         # initial params get inserted in training
         self._core_model_settings_history: List[CoreModelSettings] = []
@@ -193,32 +181,25 @@ class EMTrainingSession:
             input_tablename_r="__splink__df_concat_with_tf",
             blocking_rules=[self._blocking_rule_for_training],
             link_type=orig_settings._link_type,
-            columns_to_select_sql=", ".join(
-                orig_settings._columns_to_select_for_blocking
-            ),
             source_dataset_input_column=orig_settings.column_info_settings.source_dataset_input_column,
             unique_id_input_column=orig_settings.column_info_settings.unique_id_input_column,
         )
         pipeline.enqueue_list_of_sqls(sqls)
 
-        # repartition after blocking only exists on the SparkAPI
-        repartition_after_blocking = getattr(
-            self.db_api, "repartition_after_blocking", False
+        blocked_pairs = self.db_api.sql_pipeline_to_splink_dataframe(pipeline)
+
+        pipeline = CTEPipeline([blocked_pairs, nodes_with_tf])
+
+        sqls = compute_comparison_vector_values_from_id_pairs_sqls(
+            orig_settings._columns_to_select_for_blocking,
+            self.columns_to_select_for_comparison_vector_values,
+            input_tablename_l="__splink__df_concat_with_tf",
+            input_tablename_r="__splink__df_concat_with_tf",
+            source_dataset_input_column=orig_settings.column_info_settings.source_dataset_input_column,
+            unique_id_input_column=orig_settings.column_info_settings.unique_id_input_column,
         )
 
-        if repartition_after_blocking:
-            df_blocked = self.db_api.sql_pipeline_to_splink_dataframe(pipeline)
-            nodes_with_tf = (
-                self._original_linker._intermediate_table_cache.get_with_logging(
-                    "__splink__df_concat_with_tf"
-                )
-            )
-            pipeline = CTEPipeline([nodes_with_tf, df_blocked])
-
-        sql = compute_comparison_vector_values_sql(
-            self.columns_to_select_for_comparison_vector_values
-        )
-        pipeline.enqueue_sql(sql, "__splink__df_comparison_vectors")
+        pipeline.enqueue_list_of_sqls(sqls)
         return self.db_api.sql_pipeline_to_splink_dataframe(pipeline)
 
     def _train(self, cvv: SplinkDataFrame = None) -> CoreModelSettings:

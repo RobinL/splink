@@ -105,7 +105,7 @@ def predict_from_comparison_vectors_sqls(
         thres_prob_as_weight = prob_to_match_weight(threshold_match_probability)
     else:
         thres_prob_as_weight = None
-    if threshold_match_probability or threshold_match_weight:
+    if threshold_match_probability is not None or threshold_match_weight is not None:
         thresholds = [
             thres_prob_as_weight,
             threshold_match_weight,
@@ -115,10 +115,6 @@ def predict_from_comparison_vectors_sqls(
     else:
         threshold_expr = ""
 
-    if sql_dialect == "duckdb":
-        order_by_statement = "order by 1"
-    else:
-        order_by_statement = ""
     sql = f"""
     select
     log2({bayes_factor_expr}) as match_weight,
@@ -126,7 +122,6 @@ def predict_from_comparison_vectors_sqls(
     {select_cols_expr} {clerical_match_score}
     from __splink__df_match_weight_parts
     {threshold_expr}
-    {order_by_statement}
     """
 
     sql_info = {
