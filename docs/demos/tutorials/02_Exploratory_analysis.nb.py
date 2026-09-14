@@ -15,8 +15,8 @@
 # %% [markdown]
 # # Exploratory analysis
 #
-# <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/02_Exploratory_analysis.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/02_Exploratory_analysis.ipynb">
+#   Download notebook
 # </a>
 #
 # Exploratory analysis helps you understand features of your data which are relevant linking or deduplicating your data.

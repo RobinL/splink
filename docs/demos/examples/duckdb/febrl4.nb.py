@@ -23,8 +23,8 @@
 #
 
 # %% [markdown]
-# <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/examples/duckdb/febrl4.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# <a target="_blank" href="https://robinl.github.io/splink/demos/examples/duckdb/febrl4.ipynb">
+#   Download notebook
 # </a>
 #
 

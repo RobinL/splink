@@ -55,10 +55,8 @@ jobs:
         id: build_documentation
         run: uv run python -m mkdocs build
 
-      - name: Package and validate downloadable notebooks
-        run: |
-          uv run python docs/test_package_notebooks.py
-          uv run python docs/package_notebooks.py
+      - name: Copy downloadable notebooks into the site
+        run: cd docs && find . -name '*.ipynb' -exec cp --parents {} ../site/ \;
 
       - name: Upload built site
         id: upload_built_site
@@ -71,34 +69,14 @@ jobs:
     needs: build
     name: Deploy Documentation to GitHub Pages
     runs-on: ubuntu-latest
-    concurrency:
-      group: documentation-deploy
-      cancel-in-progress: false
     environment:
       name: github-pages
       url: ${{ steps.deploy_pages.outputs.page_url }}
     permissions:
-      contents: write
-      actions: read
+      contents: read
       id-token: write
       pages: write
     steps:
-      - name: Checkout publishing script
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Publish generated notebooks for Colab
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh run download "$GITHUB_RUN_ID" --repo "$GITHUB_REPOSITORY" \
-            --name github-pages --dir "$RUNNER_TEMP/pages-artifact"
-          mkdir -p "$RUNNER_TEMP/built-site"
-          tar -xf "$RUNNER_TEMP/pages-artifact/artifact.tar" -C "$RUNNER_TEMP/built-site"
-          gh auth setup-git
-          bash docs/publish_notebooks.sh "$RUNNER_TEMP/built-site"
-
       - name: Configure Pages
         id: configure_pages
         uses: actions/configure-pages@45bfe0192ca1faeb007ade9deae92b16b8254a0d # v6.0.0

@@ -23,34 +23,34 @@
 #
 # - [1. Data prep pre-requisites](./01_Prerequisites.ipynb)
 #
-# - [2. Exploratory analysis](./02_Exploratory_analysis.ipynb) <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/02_Exploratory_analysis.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# - [2. Exploratory analysis](./02_Exploratory_analysis.ipynb) <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/02_Exploratory_analysis.ipynb">
+#   Download notebook
 # </a>
 #
-# - [3. Choosing blocking rules to optimise runtimes](./03_Blocking.ipynb) <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/03_Blocking.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# - [3. Choosing blocking rules to optimise runtimes](./03_Blocking.ipynb) <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/03_Blocking.ipynb">
+#   Download notebook
 # </a>
 #
-# - [4. Estimating model parameters](./04_Estimating_model_parameters.ipynb) <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/04_Estimating_model_parameters.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# - [4. Estimating model parameters](./04_Estimating_model_parameters.ipynb) <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/04_Estimating_model_parameters.ipynb">
+#   Download notebook
 # </a>
 #
-# - [5. Predicting results](./05_Predicting_results.ipynb) <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/05_Predicting_results.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# - [5. Predicting results](./05_Predicting_results.ipynb) <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/05_Predicting_results.ipynb">
+#   Download notebook
 # </a>
 #
-# - [6. Visualising predictions](./06_Visualising_predictions.ipynb) <a> <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/06_Visualising_predictions.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# - [6. Visualising predictions](./06_Visualising_predictions.ipynb) <a> <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/06_Visualising_predictions.ipynb">
+#   Download notebook
 # </a>
 #
-# - [7. Evaluation](./07_Evaluation.ipynb) <a> <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/07_Evaluation.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# - [7. Evaluation](./07_Evaluation.ipynb) <a> <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/07_Evaluation.ipynb">
+#   Download notebook
 # </a>
 #
 # - [8. Building your own model](./08_building_your_own_model.md)
 #
-# - [9. Scaling up to large datasets](./09_scaling_up_techniques.ipynb) <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/09_scaling_up_techniques.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# - [9. Scaling up to large datasets](./09_scaling_up_techniques.ipynb) <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/09_scaling_up_techniques.ipynb">
+#   Download notebook
 # </a>
 #
 #

@@ -17,8 +17,8 @@
 # # !pip install splink
 
 # %% [markdown]
-# <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/examples/duckdb_no_test/business_rates_match.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# <a target="_blank" href="https://robinl.github.io/splink/demos/examples/duckdb_no_test/business_rates_match.ipynb">
+#   Download notebook
 # </a>
 
 # %% [markdown]

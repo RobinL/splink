@@ -21,8 +21,8 @@
 #
 
 # %% [markdown]
-# <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/examples/duckdb/quick_and_dirty_persons.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# <a target="_blank" href="https://robinl.github.io/splink/demos/examples/duckdb/quick_and_dirty_persons.ipynb">
+#   Download notebook
 # </a>
 #
 

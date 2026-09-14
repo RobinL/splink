@@ -19,8 +19,8 @@
 #
 
 # %% [markdown]
-# <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/examples/duckdb/accuracy_analysis_from_labels_column.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+# <a target="_blank" href="https://robinl.github.io/splink/demos/examples/duckdb/accuracy_analysis_from_labels_column.ipynb">
+#   Download notebook
 # </a>
 #
 

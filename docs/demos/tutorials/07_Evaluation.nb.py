@@ -15,8 +15,8 @@
 # %% [markdown]
 # ## Evaluation of prediction results
 #
-#  <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/tutorials/07_Evaluation.ipynb">
-#   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
+#  <a target="_blank" href="https://robinl.github.io/splink/demos/tutorials/07_Evaluation.ipynb">
+#   Download notebook
 # </a>
 #
 # In the previous tutorial, we looked at various ways to visualise the results of our model.
