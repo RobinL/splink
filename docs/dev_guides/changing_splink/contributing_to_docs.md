@@ -29,6 +29,24 @@ exclude_docs: |
   blog/**
 ```
 
+## Downloadable notebooks and Colab
+
+The Documentation workflow renders the demo `.nb.py` sources, builds the HTML
+site, then runs `uv run python docs/package_notebooks.py`. This copies each
+generated `.ipynb` beside its HTML page in the Pages artifact and checks that
+every Colab link points to a packaged notebook.
+
+For example, the blocking tutorial is downloadable at
+`https://robinl.github.io/splink/demos/tutorials/03_Blocking.ipynb`.
+
+On deployment from `master` in `RobinL/splink`, the workflow also publishes the
+same notebooks from the Pages artifact to the generated `docs-notebooks` branch.
+Colab badges use `https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/`
+followed by the notebook's path relative to `docs/`. This gives Colab a GitHub
+notebook to open while keeping generated notebooks out of `master`.
+Edit the `.nb.py` sources; the publishing workflow maintains `docs-notebooks`.
+Pull requests validate and package notebooks but do not publish them.
+
 ## Agent-readable docs exports
 
 The docs build also generates a `llms.txt` file at the site root for coding
@@ -78,7 +96,6 @@ Please correct any mistakes found or update the custom dictionary to ensure the 
     The spellchecker is configured (via `pyspelling.yml`) to ignore text between certain delimiters to minimise picking up Splink/programming-specific terms. If there are additional patterns that you think should be excepted then please let us know in your pull request.
 
     The custom dictionary deliberately contains a small number of misspelled words (e.g. “Siohban”). These are sometimes necessary where we are explaining how Splink handles typos in data records.
-
 
 
 

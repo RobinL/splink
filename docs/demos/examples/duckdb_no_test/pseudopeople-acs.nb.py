@@ -23,7 +23,7 @@
 # This tutorial is adapted from the [Febrl4 linking example](https://moj-analytical-services.github.io/splink/demos/examples/duckdb/febrl4.html).
 
 # %% [markdown]
-# <a target="_blank" href="https://colab.research.google.com/github/moj-analytical-services/splink/blob/master/docs/demos/examples/duckdb/pseuodopeople-acs.ipynb">
+# <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/demos/examples/duckdb_no_test/pseudopeople-acs.ipynb">
 #   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 # </a>
 #
