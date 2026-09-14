@@ -7,7 +7,7 @@ import shutil
 from pathlib import Path
 
 COLAB_PREFIX = "https://colab.research.google.com/github/RobinL/splink/blob/docs-notebooks/"
-COLAB_LINK = re.compile(r'https://colab\.research\.google\.com/github/[^\s"<>\)]+')
+COLAB_LINK = re.compile(r'https://colab\.research\.google\.com/github/[^\s"<>\)]+\.ipynb')
 
 
 def package_notebooks(docs_dir: Path, site_dir: Path) -> int:

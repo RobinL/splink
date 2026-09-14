@@ -2,9 +2,12 @@
 # Publish only notebooks from the exact Pages artifact being deployed.
 set -euo pipefail
 
-[[ "${GITHUB_REPOSITORY:-}" == "RobinL/splink" ]]
-[[ "${GITHUB_EVENT_NAME:-}" == "push" ]]
-[[ "${GITHUB_REF:-}" == "refs/heads/master" ]]
+if [[ "${GITHUB_REPOSITORY:-}" != "RobinL/splink" ||
+      "${GITHUB_EVENT_NAME:-}" != "push" ||
+      "${GITHUB_REF:-}" != "refs/heads/master" ]]; then
+    echo "Notebook publishing is restricted to master pushes in RobinL/splink" >&2
+    exit 1
+fi
 
 site_dir=$(realpath "$1")
 publish_dir=$(mktemp -d)
@@ -28,7 +31,10 @@ while IFS= read -r -d '' notebook; do
     mkdir -p "$(dirname "$relative")"
     cp "$notebook" "$relative"
 done < <(find "$site_dir" -type f -name '*.ipynb' -print0)
-[[ -n "$(find . -name '*.ipynb' -print -quit)" ]]
+if [[ -z "$(find . -name '*.ipynb' -print -quit)" ]]; then
+    echo "No notebooks found in the Pages artifact" >&2
+    exit 1
+fi
 
 git add .
 if ! git diff --cached --quiet; then
