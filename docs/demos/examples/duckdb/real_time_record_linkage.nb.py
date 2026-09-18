@@ -23,14 +23,14 @@
 #
 
 # %% [markdown]
-# <a target="_blank" href="https://colab.research.google.com/github/moj-analytical-services/splink/blob/master/docs/demos/examples/duckdb/real_time_record_linkage.ipynb">
+# <a target="_blank" href="https://colab.research.google.com/github/RobinL/splink/blob/ipynbs/docs/demos/examples/duckdb/real_time_record_linkage.ipynb">
 #   <img src="https://colab.research.google.com/assets/colab-badge.svg" alt="Open In Colab"/>
 # </a>
 #
 
 # %% tags=["hide_input"]
 # Uncomment and run this cell if you're running in Google Colab.
-# # !pip install splink
+# # !pip install "splink[altair,igraph,pyarrow] @ git+https://github.com/RobinL/splink.git@master"
 
 # %% [markdown]
 # ### Step 1: Load a pre-trained linkage model
@@ -50,7 +50,7 @@ def get_settings_text() -> str:
 
     # fallback location for settings - the file as it is on master, for e.g. colab use
     # TODO: update ref
-    url = "https://raw.githubusercontent.com/moj-analytical-services/splink/master/docs/demos/demo_settings/real_time_settings.json"
+    url = "https://raw.githubusercontent.com/RobinL/splink/master/docs/demos/demo_settings/real_time_settings.json"
     with urllib.request.urlopen(url) as u:
         return u.read().decode()
 

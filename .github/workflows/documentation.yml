@@ -51,7 +51,7 @@ jobs:
 
       - name: Render notebooks
         id: render_notebooks
-        run: cd docs/demos && ./render_notebooks.sh -j 4
+        run: cd docs/demos && ./render_notebooks.sh -j 4 ..
 
       - name: Build documentation
         id: build_documentation

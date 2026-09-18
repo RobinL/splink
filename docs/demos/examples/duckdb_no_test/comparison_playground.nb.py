@@ -15,7 +15,7 @@
 # %% tags=["hide_input"]
 # Uncomment and run this cell if you're running in Google Colab.
 # # !pip install ipywidgets
-# # !pip install splink
+# # !pip install "splink[altair,igraph,pyarrow] @ git+https://github.com/RobinL/splink.git@master"
 # # !jupyter nbextension enable --py widgetsnbextension
 
 # %% [markdown]
