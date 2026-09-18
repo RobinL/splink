@@ -26,7 +26,7 @@
 
 # %% tags=["hide_input", "hide_output"]
 # Uncomment and run this cell if you're running in Google Colab.
-# # !pip install splink
+# # !pip install "splink[altair,igraph,pyarrow] @ git+https://github.com/RobinL/splink.git@master"
 
 # %% tags=["hide_output"]
 from splink import splink_datasets
